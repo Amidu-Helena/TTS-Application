@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text to Speech App</title>
+  <style>
+    body {
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fbc2eb, #a6c1ee);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .container {
+      background: #fffafc;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0px 8px 25px rgba(255, 105, 180, 0.3);
+      width: 400px;
+      max-width: 100%;
+      text-align: center;
+      animation: fadeIn 1s ease-in-out;
+      border: 3px solid #ffb6c1;
+      z-index: 2;
+      position: relative;
+    }
+
+    h2 {
+      color: #ff69b4;
+      margin-bottom: 15px;
+      font-size: 24px;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ffb6c1;
+      border-radius: 12px;
+      outline: none;
+      resize: none;
+      font-size: 14px;
+      box-sizing: border-box;
+      background: #fff0f6;
+    }
+
+    select, button {
+      margin-top: 15px;
+      padding: 12px;
+      font-size: 14px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    select {
+      border: 2px solid #ffb6c1;
+      background: #fff0f6;
+      color: #d63384;
+    }
+
+    button {
+      background: linear-gradient(90deg, #ff85a2, #ffcc70);
+      color: white;
+      font-weight: bold;
+      transition: transform 0.2s ease, background 0.3s ease;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      background: linear-gradient(90deg, #ff99c8, #ffe066);
+    }
+
+    audio {
+      margin-top: 20px;
+      width: 100%;
+    }
+
+    h3 {
+      color: #ff69b4;
+      margin-top: 20px;
+    }
+
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(-20px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+
+    .heart {
+      position: absolute;
+      color: #ff69b4;
+      font-size: 20px;
+      animation: floatUp 6s linear infinite;
+      opacity: 0.8;
+    }
+
+    @keyframes floatUp {
+      0% { transform: translateY(100vh) scale(1); opacity: 1; }
+      100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+        width: 100%;
+      }
+      textarea {
+        font-size: 16px;
+      }
+      button, select {
+        font-size: 16px;
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="hearts"></div>
+
+  <div class="container">
+    <h2>🌸 Text to Speech 🎀</h2>
+
+    <textarea id="textInput" rows="5" placeholder="Type something cute..."></textarea><br>
+
+    <label for="voice">💖 Choose a voice:</label><br>
+    <select id="voice">
+      <option value="Joanna">Joanna</option>
+      <option value="Matthew">Matthew</option>
+      <option value="Amy">Amy</option>
+      <option value="Brian">Brian</option>
+    </select><br>
+
+    <button id="speakBtn">✨ Speak ✨</button>
+
+    <h3>🎧 Output:</h3>
+    <audio id="audioPlayer" controls></audio>
+  </div>
+
+  <script>
+    async function convertText() {
+      const text = document.getElementById("textInput").value.trim();
+      const voice = document.getElementById("voice").value;
+
+      if (!text) {
+        alert("Please type some text!");
+        return;
+      }
+
+      const audioPlayer = document.getElementById("audioPlayer");
+      audioPlayer.src = ""; // reset
+
+      // Show loading state
+      const speakBtn = document.getElementById("speakBtn");
+      const originalText = speakBtn.textContent;
+      speakBtn.textContent = "🎵 Generating...";
+      speakBtn.disabled = true;
+
+      try {
+        // First try with proper CORS headers
+        const response = await fetch(
+          "https://b43ymaoq6e.execute-api.us-east-1.amazonaws.com/prod/convert",
+          {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            mode: "cors",
+            credentials: "omit",
+            body: JSON.stringify({ text, voice })
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.audio_url) {
+          // New format: audio URL from S3
+          audioPlayer.src = data.audio_url;
+          audioPlayer.play();
+        } else if (data.isBase64Encoded) {
+          // Fallback format: base64 encoded audio
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          audioPlayer.src = url;
+          audioPlayer.play();
+        } else {
+          throw new Error("Unexpected response format");
+        }
+      } catch (err) {
+        console.error("Error connecting to API:", err);
+        
+        // Try alternative approach if CORS fails
+        if (err.message.includes('CORS') || err.message.includes('blocked')) {
+          try {
+            console.log("Trying alternative request method...");
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "https://b43ymaoq6e.execute-api.us-east-1.amazonaws.com/prod/convert", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.setRequestHeader("Accept", "application/json");
+            
+            xhr.onreadystatechange = function() {
+              if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                  try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.audio_url) {
+                      audioPlayer.src = data.audio_url;
+                      audioPlayer.play();
+                    } else {
+                      throw new Error("No audio URL in response");
+                    }
+                  } catch (parseErr) {
+                    console.error("Error parsing response:", parseErr);
+                    alert(`Failed to parse response: ${parseErr.message}`);
+                  }
+                } else {
+                  alert(`HTTP error! status: ${xhr.status}`);
+                }
+              }
+            };
+            
+            xhr.onerror = function() {
+              alert(`Network error: ${err.message}`);
+            };
+            
+            xhr.send(JSON.stringify({ text, voice }));
+            return; // Exit early if using XHR
+          } catch (xhrErr) {
+            console.error("XHR also failed:", xhrErr);
+          }
+        }
+        
+        alert(`Failed to generate audio: ${err.message}`);
+      } finally {
+        // Reset button state
+        speakBtn.textContent = originalText;
+        speakBtn.disabled = false;
+      }
+    }
+
+    // Attach event listener to button
+    document.getElementById("speakBtn").addEventListener("click", convertText);
+
+    // Floating hearts code
+    function createHeart() {
+      const heart = document.createElement("div");
+      heart.classList.add("heart");
+      heart.innerText = "💖";
+      heart.style.left = Math.random() * 100 + "vw";
+      heart.style.fontSize = Math.random() * 20 + 15 + "px";
+      heart.style.animationDuration = (Math.random() * 4 + 3) + "s";
+      document.getElementById("hearts").appendChild(heart);
+      setTimeout(() => heart.remove(), 6000);
+    }
+
+    setInterval(createHeart, 700);
+  </script>
+</body>
+</html>
+
+

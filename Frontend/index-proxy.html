@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text to Speech App - Proxy Version</title>
+  <style>
+    body {
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4, #fbc2eb, #a6c1ee);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .container {
+      background: #fffafc;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0px 8px 25px rgba(255, 105, 180, 0.3);
+      width: 400px;
+      max-width: 100%;
+      text-align: center;
+      animation: fadeIn 1s ease-in-out;
+      border: 3px solid #ffb6c1;
+      z-index: 2;
+      position: relative;
+    }
+
+    h2 {
+      color: #ff69b4;
+      margin-bottom: 15px;
+      font-size: 24px;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ffb6c1;
+      border-radius: 12px;
+      outline: none;
+      resize: none;
+      font-size: 14px;
+      box-sizing: border-box;
+      background: #fff0f6;
+    }
+
+    select, button {
+      margin-top: 15px;
+      padding: 12px;
+      font-size: 14px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    select {
+      border: 2px solid #ffb6c1;
+      background: #fff0f6;
+      color: #d63384;
+    }
+
+    button {
+      background: linear-gradient(90deg, #ff85a2, #ffcc70);
+      color: white;
+      font-weight: bold;
+      transition: transform 0.2s ease, background 0.3s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: scale(1.05);
+      background: linear-gradient(90deg, #ff99c8, #ffe066);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    audio {
+      margin-top: 20px;
+      width: 100%;
+    }
+
+    h3 {
+      color: #ff69b4;
+      margin-top: 20px;
+    }
+
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(-20px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+
+    .heart {
+      position: absolute;
+      color: #ff69b4;
+      font-size: 20px;
+      animation: floatUp 6s linear infinite;
+      opacity: 0.8;
+    }
+
+    @keyframes floatUp {
+      0% { transform: translateY(100vh) scale(1); opacity: 1; }
+      100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+    }
+
+    .error-message {
+      color: #ff4757;
+      background: #ffe6e6;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .success-message {
+      color: #2ed573;
+      background: #e6ffe6;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .info-message {
+      color: #3742fa;
+      background: #e6f3ff;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+        width: 100%;
+      }
+      textarea {
+        font-size: 16px;
+      }
+      button, select {
+        font-size: 16px;
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="hearts"></div>
+
+  <div class="container">
+    <h2>🌸 Text to Speech 🎀</h2>
+
+    <textarea id="textInput" rows="5" placeholder="Type something cute..."></textarea><br>
+
+    <label for="voice">💖 Choose a voice:</label><br>
+    <select id="voice">
+      <option value="Joanna">Joanna</option>
+      <option value="Matthew">Matthew</option>
+      <option value="Amy">Amy</option>
+      <option value="Brian">Brian</option>
+    </select><br>
+
+    <button id="speakBtn">✨ Speak ✨</button>
+
+    <div id="statusMessage"></div>
+
+    <h3>🎧 Output:</h3>
+    <audio id="audioPlayer" controls></audio>
+  </div>
+
+  <script>
+    // Floating hearts animation
+    function createHeart() {
+      const heart = document.createElement("div");
+      heart.classList.add("heart");
+      heart.innerText = "💖";
+      heart.style.left = Math.random() * 100 + "vw";
+      heart.style.fontSize = Math.random() * 20 + 15 + "px";
+      heart.style.animationDuration = (Math.random() * 4 + 3) + "s";
+      document.getElementById("hearts").appendChild(heart);
+      setTimeout(() => heart.remove(), 6000);
+    }
+
+    setInterval(createHeart, 700);
+
+    // Use a CORS proxy to bypass CORS issues
+    async function convertText() {
+      const text = document.getElementById("textInput").value.trim();
+      const voice = document.getElementById("voice").value;
+      const audioPlayer = document.getElementById("audioPlayer");
+      const speakBtn = document.getElementById("speakBtn");
+      const statusMessage = document.getElementById("statusMessage");
+
+      if (!text) {
+        showMessage("Please type some text!", "error");
+        return;
+      }
+
+      // Reset
+      audioPlayer.src = "";
+      speakBtn.disabled = true;
+      speakBtn.innerHTML = '<span class="loading-spinner"></span> Generating...';
+      showMessage("", "");
+
+      // Try multiple CORS proxy services
+      const proxies = [
+        "https://cors-anywhere.herokuapp.com/",
+        "https://api.allorigins.win/raw?url=",
+        "https://thingproxy.freeboard.io/fetch/",
+        "" // Direct call as fallback
+      ];
+
+      const API_URL = "https://b43ymaoq6e.execute-api.us-east-1.amazonaws.com/prod/convert";
+      
+      for (let i = 0; i < proxies.length; i++) {
+        try {
+          const proxy = proxies[i];
+          const url = proxy ? proxy + encodeURIComponent(API_URL) : API_URL;
+          
+          console.log(`Trying proxy ${i + 1}: ${proxy || 'Direct'}`);
+          showMessage(`Trying method ${i + 1}...`, "info");
+
+          const response = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json"
+            },
+            body: JSON.stringify({ text, voice })
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          console.log(`Proxy ${i + 1} successful:`, data);
+          
+          if (data.audio_url) {
+            audioPlayer.src = data.audio_url;
+            audioPlayer.play();
+            showMessage("Audio generated successfully! 🎉", "success");
+            return; // Success, exit the loop
+          } else {
+            throw new Error("No audio URL in response");
+          }
+
+        } catch (error) {
+          console.error(`Proxy ${i + 1} failed:`, error);
+          if (i === proxies.length - 1) {
+            // Last proxy failed
+            showMessage(`All methods failed. Last error: ${error.message}`, "error");
+          }
+        }
+      }
+    }
+
+    // Show status message
+    function showMessage(message, type) {
+      const statusMessage = document.getElementById("statusMessage");
+      statusMessage.innerHTML = message;
+      statusMessage.className = type ? `${type}-message` : "";
+    }
+
+    // Attach event listener
+    document.getElementById("speakBtn").addEventListener("click", convertText);
+
+    // Show info about CORS proxy usage
+    window.addEventListener("load", () => {
+      showMessage("Using CORS proxy to bypass browser restrictions. This may take a moment.", "info");
+    });
+  </script>
+</body>
+</html>
